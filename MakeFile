@@ -1,0 +1,38 @@
+all: compile link execute clean
+
+compile:
+	g++ -c ./Object/Button.cpp -o Button.o
+	g++ -c ./Object/TextBox.cpp -o TextBox.o
+
+	g++ -c ./Stage2/LoginScreen.cpp -o LoginScreen.o
+	g++ -c ./Stage2/RegisterScreen.cpp -o RegisterScreen.o
+
+	g++ -c ./Admin/LoggedinScreen.cpp -o LoggedinScreenAdmin.o
+	g++ -c ./Admin/ManageUserScreen.cpp -o ManageUserScreenAdmin.o
+	g++ -c ./Admin/ManageRoomScreen.cpp -o ManageRoomScreenAdmin.o
+
+	g++ -c ./User/LoggedinScreenUser.cpp -o LoggedinScreenUser.o
+	g++ -c ./User/JoinRoomScreenUser.cpp -o JoinRoomScreenUser.o
+	g++ -c ./User/LobbyScreenUser.cpp -o LobbyScreenUser.o
+	g++ -c ./User/CreateRoomScreenUser.cpp -o CreateRoomScreenUser.o
+	g++ -c ./User/LobbyScreenUserReady.cpp -o LobbyScreenUserReady.o
+	g++ -c ./User/SpectateScreenUser.cpp -o SpectateScreenUser.o
+
+	g++ -c ./Stage3/PlayingScreenUser.cpp -o PlayingScreenUser.o
+	g++ -c ./Stage3/PlayingScreenSpectate.cpp -o PlayingScreenSpectate.o
+	g++ -c ./Stage3/type_cube_3D.cpp -o type_cube_3D.o
+
+	g++ -c ./Solve_Cube/type_cube.cpp -o type_cube.o
+
+	g++ -c StartScreen.cpp -o StartScreen.o
+	g++ -c FinishScreen.cpp -o FinishScreen.o
+	g++ -c GuideGame.cpp -o GuideGame.o
+
+link:
+	g++ main.cpp Button.o TextBox.o LoginScreen.o RegisterScreen.o StartScreen.o FinishScreen.o GuideGame.o LoggedinScreenAdmin.o ManageUserScreenAdmin.o ManageRoomScreenAdmin.o LoggedinScreenUser.o JoinRoomScreenUser.o LobbyScreenUser.o CreateRoomScreenUser.o LobbyScreenUserReady.o SpectateScreenUser.o PlayingScreenUser.o PlayingScreenSpectate.o type_cube_3D.o type_cube.o -o sfml_app -I/mingw64/include -L/mingw64/lib -lsfml-graphics -lsfml-window -lsfml-system -lopengl32 
+
+execute:
+	./sfml_app
+
+clean:
+	rm -f *.o sfml_app.exe

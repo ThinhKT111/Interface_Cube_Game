@@ -1,0 +1,242 @@
+#include <SFML/Graphics.hpp>
+
+#include ".././Object/Button.hpp"
+#include ".././Object/TextBox.hpp"
+
+#include <iostream>
+#include <sstream>
+
+#include "LobbyScreenUserReady.h"
+#include ".././Stage3/PlayingScreenUser.h"
+#include "LoggedinScreenUser.h"
+#include ".././FinishScreen.h"
+#include ".././GuideGame.h"
+
+using namespace std;
+
+// Cấu trúc dữ liệu cho mỗi hàng
+struct Row4 {
+    std::string playerName;
+    std::string status;
+    std::string spectator;
+};
+
+// Các thông số kích thước và vị trí
+const float TABLE_OFFSET_X1 = 310; // Vị trí X của bảng 1
+const float TABLE_OFFSET_X2 = 820; // Vị trí X của bảng 2
+const float TABLE_OFFSET_Y = 200;  // Vị trí Y của bảng
+const int ROW_HEIGHT = 50;         // Chiều cao mỗi hàng
+const int TABLE_HEIGHT = 300;      // Chiều cao vùng hiển thị bảng
+const int VISIBLE_ROWS = 6;        // Số hàng hiển thị trong bảng
+const int TABLE_WIDTH = 480;       // Chiều rộng bảng
+
+// Hàm tạo văn bản
+sf::Text createText4(const std::string &str, const sf::Font &font, float x, float y, unsigned int size = 18) {
+    sf::Text text;
+    text.setFont(font);
+    text.setString(str);
+    text.setCharacterSize(size);
+    text.setFillColor(sf::Color::Black);
+    text.setPosition(x, y);
+    return text;
+}
+
+// Hàm vẽ bảng
+void drawTable(sf::RenderWindow& window, const std::vector<Row4>& rows, float offsetX, float offsetY, const sf::Font& font, int scrollOffset) {
+    for (size_t i = 0; i < rows.size(); ++i) {
+        float y = offsetY + 50 + i * ROW_HEIGHT - scrollOffset;
+
+        if (y >= offsetY + 50 && y <= offsetY + 350) {
+            // Đường ngang
+            sf::RectangleShape line(sf::Vector2f(TABLE_WIDTH - 20, 1));
+            line.setPosition(offsetX + 10, y + ROW_HEIGHT - 1);
+            line.setFillColor(sf::Color::Black);
+            window.draw(line);
+
+            // Vẽ Player, Status, Spectator
+            if (offsetX == TABLE_OFFSET_X1) {
+                window.draw(createText4(rows[i].playerName, font, offsetX + 20, y));
+                window.draw(createText4(rows[i].status, font, offsetX + 200, y));
+            } else {
+                window.draw(createText4(rows[i].spectator, font, offsetX + 20, y));
+            }
+        }
+    }
+}
+
+int LobbyScreenUserReady(sf::RenderWindow &window, std::string roomid)
+{
+    int checkOpen=0;
+    sf::Clock clock;
+
+    sf::Text nameLabel, tittle1, tittle2, nameWindow;
+    sf::Font font;
+    if (!font.loadFromFile("arial.ttf")) {
+        return -1; // Kiểm tra nếu font không tải được
+    }
+
+    nameLabel.setFont(font);
+    nameLabel.setString("User");
+    nameLabel.setCharacterSize(30);
+    nameLabel.setFillColor(sf::Color::Black);
+    nameLabel.setPosition(1040, 20);
+
+    nameWindow.setFont(font);
+    nameWindow.setString("JOIN ROOM");
+    nameWindow.setCharacterSize(30);
+    nameWindow.setFillColor(sf::Color::Black);
+    nameWindow.setPosition(90, 25);
+    nameWindow.setStyle(sf::Text::Bold);
+
+    tittle1.setFont(font);
+    tittle1.setString("You're all set!");
+    tittle1.setCharacterSize(20);
+    tittle1.setFillColor(sf::Color::Black);
+    tittle1.setPosition(450, 100);
+    tittle1.setStyle(sf::Text::Bold);
+
+    tittle2.setFont(font);
+    tittle2.setString("GAME START IN" + std::to_string(10));
+    tittle2.setCharacterSize(20);
+    tittle2.setFillColor(sf::Color::Black);
+    tittle2.setPosition(450, 200);
+    tittle2.setStyle(sf::Text::Italic);
+
+    
+
+    // Load images
+    sf::Texture settingTexture;
+    if (!settingTexture.loadFromFile("./Image/setting.png")) {
+        std::cerr << "Error loading setting image\n";
+        return -1;
+    }
+    sf::Sprite settingSprite(settingTexture);
+    settingSprite.setPosition(20, 20);
+
+    sf::Texture peopleTexture;
+    if (!peopleTexture.loadFromFile("./Image/people.png")) {
+        std::cerr << "Error loading people image\n";
+        return -1;
+    }
+    sf::Sprite peopleSprite(peopleTexture);
+    peopleSprite.setPosition(1000, 20);
+
+
+    
+
+    // Tạo bộ dữ liệu 20 hàng cho mỗi bảng
+    std::vector<Row4> rows1, rows2;
+    rows1.push_back({"Player", "Status", "Spectator"});
+    rows2.push_back({"Spectator", "Spectator", "Spectator"});
+    for (int i = 2; i <= 20; ++i) {
+        rows1.push_back({"Player" + std::to_string(i-1), (i % 3 == 0) ? "Banned" : "Active", ""});
+        rows2.push_back({"", "", (i % 2 == 0) ? "Yes" : "No"});
+    }
+
+    
+
+    // Biến điều khiển cuộn
+    int scrollOffset = 0; // Vị trí cuộn hiện tại
+
+    // Tính toán thanh kéo
+    float scrollbarHeight = (float)TABLE_HEIGHT / (rows1.size() * ROW_HEIGHT) * TABLE_HEIGHT;
+    sf::RectangleShape scrollbar(sf::Vector2f(15, scrollbarHeight));
+    scrollbar.setPosition(TABLE_OFFSET_X1 + TABLE_WIDTH - 10, TABLE_OFFSET_Y + 50);
+    scrollbar.setFillColor(sf::Color(150, 150, 150));
+
+    bool dragging = false;
+    float dragOffset = 0.0f;
+
+
+
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+
+            // Handle click on settingSprite
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (settingSprite.getGlobalBounds().contains(window.mapPixelToCoords(sf::Mouse::getPosition(window)))) {
+                    // Call the function from GuideGame.cpp
+                    GuideGame(); // Replace with the actual function name
+                    std::cout << "Setting image clicked\n";
+                }
+            }
+
+            // Sự kiện cuộn chuột
+            if (event.type == sf::Event::MouseWheelScrolled) {
+                scrollOffset += event.mouseWheelScroll.delta * -20;
+                scrollOffset = std::max(0, std::min(scrollOffset, (int)(rows1.size() * ROW_HEIGHT - TABLE_HEIGHT)));
+                scrollbar.setPosition(TABLE_OFFSET_X1 + TABLE_WIDTH - 10,
+                                      TABLE_OFFSET_Y + 50 + (float)scrollOffset / (rows1.size() * ROW_HEIGHT) * TABLE_HEIGHT);
+            }
+
+            // Kéo thanh kéo
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                if (scrollbar.getGlobalBounds().contains(event.mouseButton.x, event.mouseButton.y)) {
+                    dragging = true;
+                    dragOffset = event.mouseButton.y - scrollbar.getPosition().y;
+                }
+            }
+            if (event.type == sf::Event::MouseButtonReleased)
+                dragging = false;
+
+            if (event.type == sf::Event::MouseMoved && dragging) {
+                float newY = event.mouseMove.y - dragOffset;
+                newY = std::max(TABLE_OFFSET_Y + 50.0f, std::min(newY, TABLE_OFFSET_Y + 50.0f + TABLE_HEIGHT - scrollbarHeight));
+                scrollbar.setPosition(TABLE_OFFSET_X1 + TABLE_WIDTH - 10, newY);
+                scrollOffset = ((newY - TABLE_OFFSET_Y - 50) / TABLE_HEIGHT) * (rows1.size() * ROW_HEIGHT - TABLE_HEIGHT);
+            }
+        }
+        // Drawing
+        window.clear(sf::Color(180, 255, 240)); // Background Color
+
+        window.draw(settingSprite);
+        window.draw(peopleSprite);
+        window.draw(nameLabel);
+        window.draw(nameWindow);
+
+        window.draw(tittle1);
+        window.draw(tittle2);
+        
+
+
+        // Vẽ bảng 1 (Player và Status)
+        drawTable(window, rows1, TABLE_OFFSET_X1, TABLE_OFFSET_Y, font, scrollOffset);
+
+        // Vẽ bảng 2 (Spectator)
+        drawTable(window, rows2, TABLE_OFFSET_X2, TABLE_OFFSET_Y, font, scrollOffset);
+
+        // Vẽ thanh kéo
+        window.draw(scrollbar);
+        
+        
+        std::cout << "Ready\n";
+        if (clock.getElapsedTime().asSeconds() >= 10) {
+            std::cout << "10 seconds have passed!" << std::endl;
+            checkOpen = 1; //Khi checkOpen == 1 thì nghĩa là từ server đưa ra thông báo bắt đầu game
+        }
+
+        if (checkOpen == 1)
+        {
+            checkOpen = PlayingScreenUser(roomid);
+        }
+        
+
+        if (checkOpen == 2)
+        {
+            LoggedinScreenUser(window);
+        }
+        else if (checkOpen == 3)
+        {
+            FinishScreen(window, 2);
+        }
+        
+
+        window.display();
+    }
+
+    return 0;
+    
+}
