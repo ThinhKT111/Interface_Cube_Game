@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <nlohmann/json.hpp>
 
 #include ".././User/JoinRoomScreenUser.h"
 #include "PlayingScreenSpectate.h"
@@ -13,7 +14,10 @@
 #include "../Solve_Cube/type_cube.h"
 #include "../GuideGame.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 class ScrollableColumn {
 private:
@@ -242,8 +246,36 @@ int PlayingScreenSpectate( std::string roomid, int status_user)
     glVertexPointer(3, GL_FLOAT, 7 * sizeof(GLfloat), cube);
     glColorPointer(4, GL_FLOAT, 7 * sizeof(GLfloat), &cube[3]);
 
+    // Create JSON payload
+    json payload;
+    payload["type"] = "JOIN_ROOM";
+    //payload["data"]["room_id"] = std::stoi(roomid);
+    payload["data"]["participant_type"] = "PLAYER";
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Parse the JSON response
+    json jsonResponse = json::parse(response);
+
+    // Extract player names
+    std::vector<std::string> playerNames;
+    if (jsonResponse["status"] == "success") {
+        for (const auto& participant : jsonResponse["data"]["room_participants"]) {
+            if (participant["participant_type"] == "PLAYER") {
+                playerNames.push_back(participant["participant_id"].get<std::string>());
+            }
+        }
+    } else {
+        std::cerr << "Failed to join room: " << jsonResponse["data"]["message"] << std::endl;
+    }
+
     ScrollableColumn column({500, 0}, {140, 200}, 20);
-    column.setItems({"Phong", "Thinh", "Phuong", "Some1", "Player5", "Player6", "Player7", "Player8", "Player9", "Player5", "Player6", "Player7", "Player8", "Player9"});
+    column.setItems(playerNames);
+    //column.setItems({"Phong", "Thinh", "Phuong", "Some1", "Player5", "Player6", "Player7", "Player8", "Player9", "Player5", "Player6", "Player7", "Player8", "Player9"});
 
     std::string selectedName;
 
@@ -381,7 +413,7 @@ int PlayingScreenSpectate( std::string roomid, int status_user)
         }
 
         userstepText.setString(usersteps);
-        window.draw(userstepText);
+        // window.draw(userstepText);
         window.draw(timerText);
         window.popGLStates();
 

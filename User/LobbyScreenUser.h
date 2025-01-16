@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int LobbyScreenUser(sf::RenderWindow &window, std::string roomid);
+int LobbyScreenUser(sf::RenderWindow &window, std::string roomid, std::string username);
 
 #endif

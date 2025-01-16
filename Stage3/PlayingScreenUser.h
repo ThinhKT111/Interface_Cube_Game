@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int PlayingScreenUser( std::string roomid);
+int PlayingScreenUser( std::string roomid, std::string username);
 
 #endif

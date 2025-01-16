@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int JoinRoomScreenUser(sf::RenderWindow &window);
+int JoinRoomScreenUser(sf::RenderWindow &window, std::string username);
 
 #endif

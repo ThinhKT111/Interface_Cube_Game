@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int CreateRoomScreenUser(sf::RenderWindow &window);
+int CreateRoomScreenUser(sf::RenderWindow &window, std::string username);
 
 #endif

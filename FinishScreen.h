@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int FinishScreen(sf::RenderWindow &window, int status_user);
+int FinishScreen(sf::RenderWindow &window, int status_user, std::string username);
 
 #endif

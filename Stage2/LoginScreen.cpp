@@ -5,6 +5,9 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <sstream>
+#include <nlohmann/json.hpp>
+#include <fstream> // Include this header for file I/O
 
 #include "LoginScreen.h"
 
@@ -12,16 +15,21 @@
 #include ".././User/LoggedinScreenUser.h"
 #include "../StartScreen.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 
 using namespace std;
+using json = nlohmann::json;
+
 
 int LoginScreen(sf::RenderWindow &window)
 {
-    std::string email = "";
+    //Giá trị theo dạng string của username và password
+    std::string username = "";
     std::string password = "";
     int checkInput = 0;
     
-    sf::Text emailLabel, passwordLabel, title, alert;
+    sf::Text usernameLabel, passwordLabel, title, alert;
     sf::Font font;
     if (!font.loadFromFile("arial.ttf")) {
         return -1; // Kiểm tra nếu font không tải được
@@ -33,11 +41,11 @@ int LoginScreen(sf::RenderWindow &window)
     title.setFillColor(sf::Color::Black);
     title.setPosition(50, 50);
 
-    emailLabel.setFont(font);
-    emailLabel.setString("Email:");
-    emailLabel.setCharacterSize(20);
-    emailLabel.setFillColor(sf::Color::Black);
-    emailLabel.setPosition(50, 120);
+    usernameLabel.setFont(font);
+    usernameLabel.setString("Username:");
+    usernameLabel.setCharacterSize(20);
+    usernameLabel.setFillColor(sf::Color::Black);
+    usernameLabel.setPosition(50, 120);
 
     passwordLabel.setFont(font);
     passwordLabel.setString("Password:");
@@ -46,7 +54,7 @@ int LoginScreen(sf::RenderWindow &window)
     passwordLabel.setPosition(50, 190);
 
     alert.setFont(font);
-    alert.setString("Error: Wrong email or password");
+    alert.setString("Error: Wrong username or password");
     alert.setCharacterSize(20);
     alert.setFillColor(sf::Color::Red);
     alert.setPosition(475, 475);
@@ -55,9 +63,11 @@ int LoginScreen(sf::RenderWindow &window)
     
     Button backButton("Back", font, 20, {549.5, 600}, {150, 50}, sf::Color(100, 100, 250));
 
-    TextBox emailBox(190, 120, 600, 40, "arial.ttf");
+    TextBox usernameBox(190, 120, 600, 40, "arial.ttf");
     TextBox passwordBox(190, 190, 600, 40, "arial.ttf");
-    // Mặc định TextBox1 có focus
+    // Nhập username và password
+
+    
 
     while (window.isOpen()) {
         sf::Event event;
@@ -65,15 +75,15 @@ int LoginScreen(sf::RenderWindow &window)
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            emailBox.handleEvent(event, window);
+            usernameBox.handleEvent(event, window);
             passwordBox.handleEvent(event, window);
             // Khi nhấn phím Enter, lưu giá trị TextBox vào string
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
-                email = emailBox.getText();
+                username = usernameBox.getText();
                 password = passwordBox.getText();
 
-                // Hiển thị giá trị ra console (hoặc sử dụng giá trị này ở nơi khác)
-                std::cout << "TextBox 1: " << email << std::endl;
+                // Hiển thị giá trị ra console tại đây cần thêm phần xử lý xem thông tin đã đúng hay chưa?
+                std::cout << "TextBox 1: " << username << std::endl;
                 std::cout << "TextBox 2: " << password << std::endl;
             }
 
@@ -82,20 +92,40 @@ int LoginScreen(sf::RenderWindow &window)
             {
                 if (submitButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    if (email == "admin" && password == "admin")
-                    {
-                        LoggedinScreenAdmin(window);
-                        std::cout << "Login button clicked with Admin\n";
+                    // Create JSON payload
+                    json payload;
+                    payload["data"]["password"] = password;
+                    payload["data"]["username"] = username;
+                    payload["type"] = "SIGN_IN";
+
+                    // Convert JSON payload to string
+                    std::string pushData = payload.dump(4);
+                    std::cout << pushData << std::endl;
+                    
+                    std::string response = sendData(pushData);
+
+                    // Parse the JSON response
+                    json jsonResponse = json::parse(response);
+
+                    // Check the status and user_type fields
+                    if (jsonResponse["status"] == "success") {
+                        std::cout << "Success: " << jsonResponse["data"]["message"] << std::endl;
+                        if (jsonResponse["data"]["user_type"] == "ADMIN") {
+                            username = jsonResponse["data"]["username"];
+                            std::cout << "User type: " << username << std::endl;
+                            LoggedinScreenAdmin(window);
+                        }
+                        else {
+                            username = jsonResponse["data"]["username"];
+                            std::cout << "User type: " << username << std::endl;
+                            LoggedinScreenUser(window, username);
+                        }
                     }
-                    else if (email == "user" && password == "user")
-                    {
-                        LoggedinScreenUser(window);
-                        std::cout << "Login button clicked with User\n";
+                    else {
+                        std::cout << "Fail: " << jsonResponse["data"]["message"] << std::endl;
+                        checkInput = 1;
                     }
-                    else
-                    {
-                        checkInput++;
-                    }
+
                 }
                 if (backButton.isClicked(sf::Mouse::getPosition(window)))
                 {
@@ -108,7 +138,7 @@ int LoginScreen(sf::RenderWindow &window)
         window.clear(sf::Color(180, 255, 240)); // Background Color
 
         window.draw(title);
-        window.draw(emailLabel);
+        window.draw(usernameLabel);
         window.draw(passwordLabel);
         if (checkInput > 0)
         {
@@ -116,7 +146,7 @@ int LoginScreen(sf::RenderWindow &window)
         }
         submitButton.draw(window);
         backButton.draw(window);
-        emailBox.draw(window);
+        usernameBox.draw(window);
         passwordBox.draw(window);
 
         window.display();

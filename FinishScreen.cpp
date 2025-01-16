@@ -76,7 +76,7 @@ public:
     }
 };
 
-int FinishScreen(sf::RenderWindow &window, int status_user) {
+int FinishScreen(sf::RenderWindow &window, int status_user, std::string username) {
 
     sf::Text tittle1, tittle2 ;
 
@@ -134,7 +134,7 @@ int FinishScreen(sf::RenderWindow &window, int status_user) {
                     }
                     else if (status_user == 2)
                     {
-                        LoggedinScreenUser(window);
+                        LoggedinScreenUser(window, "username");
                     }
                     std::cout << "Back button clicked\n";
                 }

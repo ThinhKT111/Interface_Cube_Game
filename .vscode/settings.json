@@ -53,6 +53,15 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "cstdarg": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "cinttypes": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "cstring": "cpp",
+        "forward_list": "cpp",
+        "ratio": "cpp",
+        "ranges": "cpp",
+        "valarray": "cpp",
+        "fstream": "cpp"
     }
 }

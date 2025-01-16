@@ -3,6 +3,7 @@ all: compile link execute clean
 compile:
 	g++ -c ./Object/Button.cpp -o Button.o
 	g++ -c ./Object/TextBox.cpp -o TextBox.o
+	g++ -c ./Object/ServerCommune.cpp -o ServerCommune.o
 
 	g++ -c ./Stage2/LoginScreen.cpp -o LoginScreen.o
 	g++ -c ./Stage2/RegisterScreen.cpp -o RegisterScreen.o
@@ -29,7 +30,7 @@ compile:
 	g++ -c GuideGame.cpp -o GuideGame.o
 
 link:
-	g++ main.cpp Button.o TextBox.o LoginScreen.o RegisterScreen.o StartScreen.o FinishScreen.o GuideGame.o LoggedinScreenAdmin.o ManageUserScreenAdmin.o ManageRoomScreenAdmin.o LoggedinScreenUser.o JoinRoomScreenUser.o LobbyScreenUser.o CreateRoomScreenUser.o LobbyScreenUserReady.o SpectateScreenUser.o PlayingScreenUser.o PlayingScreenSpectate.o type_cube_3D.o type_cube.o -o sfml_app -I/mingw64/include -L/mingw64/lib -lsfml-graphics -lsfml-window -lsfml-system -lopengl32 
+	g++ main.cpp Button.o TextBox.o ServerCommune.o LoginScreen.o RegisterScreen.o StartScreen.o FinishScreen.o GuideGame.o LoggedinScreenAdmin.o ManageUserScreenAdmin.o ManageRoomScreenAdmin.o LoggedinScreenUser.o JoinRoomScreenUser.o LobbyScreenUser.o CreateRoomScreenUser.o LobbyScreenUserReady.o SpectateScreenUser.o PlayingScreenUser.o PlayingScreenSpectate.o type_cube_3D.o type_cube.o -o sfml_app -I/mingw64/include -I./include -L/mingw64/lib -lsfml-graphics -lsfml-window -lsfml-system -lcurl -lopengl32 -lws2_32
 
 execute:
 	./sfml_app

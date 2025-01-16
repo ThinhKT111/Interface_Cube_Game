@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "ManageRoomScreen.h"
 #include "LoggedinScreen.h"
@@ -15,7 +16,10 @@
 #include ".././Stage3/PlayingScreenSpectate.h"
 #include "../GuideGame.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 // Cấu trúc dữ liệu cho mỗi hàng
 struct Row1 {
@@ -99,11 +103,36 @@ int ManageRoomScreenAdmin(sf::RenderWindow &window)
 
     Button SpectateButton("Spectate", font, 20, {574.5, 690}, {100, 40}, sf::Color(100, 100, 250));
 
-    // Tạo bộ dữ liệu 20 hàng
+    // Create JSON payload
+    json payload;
+    payload["type"] = "VIEW_ROOMS";
+    payload["data"] = {};
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Parse the JSON response
+    json jsonResponse = json::parse(response);
+
+    // Tạo bộ dữ liệu 
     std::vector<Row1> rows;
-    rows.push_back({"ID", "NAME", "SPEC", "STATUS", false});
-    for (int i = 2; i <= 20; ++i) {
-        rows.push_back({std::to_string(i), std::to_string(i-2) + "/" + std::to_string(i), std::to_string(i-2) + "/" + std::to_string(i), (i % 3 == 0) ? "WAIT" : "PLAY", false});
+    if (jsonResponse["status"] == "success") {
+        // Extract user data
+        rows.push_back({"ID", "PLAYER", "SPEC", "STATUS", false});
+        for (const auto& room : jsonResponse["data"]["users"]) {
+            std::string room_id = to_string(room["id"]);
+            std::string numberuser = to_string(room["current_players"]) + "/" + to_string(room["max_players"]);
+            std::string numberspec = to_string(room["current_spectators"]) + "/" + to_string(room["max_spectators"]);
+            std::string status = room["status"];
+            rows.push_back({room_id, numberuser, numberspec, status, false});
+        }
+    }
+    else
+    {
+        std::cerr << "Failed to get user data\n";
     }
 
     // Biến điều khiển cuộn
@@ -185,7 +214,10 @@ int ManageRoomScreenAdmin(sf::RenderWindow &window)
                         if(rows[i].pickState == true)
                             rows[i].pickState = false;
                         else
+                        {
                             rows[i].pickState = true;
+                            roomid = rows[i].id;
+                        }
                         std::cout << "Pick button clicked on row " << i << std::endl;
                     }
                 }

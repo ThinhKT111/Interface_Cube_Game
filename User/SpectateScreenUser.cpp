@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <nlohmann/json.hpp>
 
 #include "SpectateScreenUser.h"
 #include "JoinRoomScreenUser.h"
@@ -13,7 +14,10 @@
 #include ".././FinishScreen.h"
 #include ".././GuideGame.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 // Cấu trúc dữ liệu cho mỗi hàng
 struct Row5 {
@@ -65,7 +69,7 @@ void drawTable(sf::RenderWindow& window, const std::vector<Row5>& rows, float of
     }
 }
 
-int SpectateScreenUser(sf::RenderWindow &window, std::string roomid)
+int SpectateScreenUser(sf::RenderWindow &window, std::string roomid, std::string username)
 {
     int checkOpen=0;
     sf::Clock clock; 
@@ -76,14 +80,28 @@ int SpectateScreenUser(sf::RenderWindow &window, std::string roomid)
         return -1; // Kiểm tra nếu font không tải được
     }
 
+    // Create JSON payload
+    json payload;
+    payload["type"] = "SIGN_IN";
+    payload["data"]["username"] = username;
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Parse the JSON response
+    json jsonResponse = json::parse(response);
+
     nameLabel.setFont(font);
-    nameLabel.setString("User");
+    nameLabel.setString(to_string(jsonResponse["data"]["player"]["username"]));
     nameLabel.setCharacterSize(30);
     nameLabel.setFillColor(sf::Color::Black);
     nameLabel.setPosition(1040, 20);
 
     nameWindow.setFont(font);
-    nameWindow.setString("JOIN ROOM");
+    nameWindow.setString("LOBBY");
     nameWindow.setCharacterSize(30);
     nameWindow.setFillColor(sf::Color::Black);
     nameWindow.setPosition(90, 25);
@@ -125,13 +143,36 @@ int SpectateScreenUser(sf::RenderWindow &window, std::string roomid)
 
     Button ExitButton("Exit Lobby", font, 20, {574.5, 760}, {100, 40}, sf::Color(100, 100, 250));
 
+     // Create JSON payload
+    json payload1;
+    payload1["type"] = "JOIN_ROOM";
+    payload1["data"]["room_id"] = std::stoi(roomid);
+    payload1["data"]["participant_type"] = "PLAYER";
+
+    // Convert JSON payload to string
+    std::string pushData1 = payload1.dump(4);
+    std::cout << pushData1 << std::endl;
+
+    std::string response1 = sendData(pushData1);
+
+    // Parse the JSON response
+    json jsonResponse1 = json::parse(response1);
+
     // Tạo bộ dữ liệu 20 hàng cho mỗi bảng
     std::vector<Row5> rows1, rows2;
-    rows1.push_back({"Player", "Status", "Spectator"});
-    rows2.push_back({"Spectator", "Spectator", "Spectator"});
-    for (int i = 2; i <= 20; ++i) {
-        rows1.push_back({"Player" + std::to_string(i-1), (i % 3 == 0) ? "Banned" : "Active", ""});
-        rows2.push_back({"", "", (i % 2 == 0) ? "Yes" : "No"});
+
+    rows1.push_back({"Player", "Status", "Ready"});
+    rows2.push_back({"Spectator", "Status", "Ready"});
+    for (const auto& participant : jsonResponse1["data"]["room_participants"]) {
+        std::string participantType = participant["participant_type"];
+        std::string status = participant["is_ready"] ? "Ready" : "Not Ready";
+        std::string participantId = to_string(participant["participant_id"]);
+
+        if (participantType == "PLAYER") {
+            rows1.push_back({participantId, "Active", status});
+        } else if (participantType == "PLAYER_SPECTATOR" || participantType == "ADMIN_SPECTATOR") {
+            rows2.push_back({participantId, "Spectator", status});
+        }
     }
 
     // Biến điều khiển cuộn
@@ -159,7 +200,7 @@ int SpectateScreenUser(sf::RenderWindow &window, std::string roomid)
             {
                 if (ExitButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    JoinRoomScreenUser(window);
+                    JoinRoomScreenUser(window, username);
                     std::cout << "Exit button clicked\n";
                 }
             }
@@ -223,8 +264,8 @@ int SpectateScreenUser(sf::RenderWindow &window, std::string roomid)
         
         
         std::cout << "Ready\n";
-        if (clock.getElapsedTime().asSeconds() >= 10) {
-            std::cout << "10 seconds have passed!" << std::endl;
+        if (clock.getElapsedTime().asSeconds() >= 3) {
+            std::cout << "3 seconds have passed!" << std::endl;
             checkOpen = 1; //Khi checkOpen == 1 thì nghĩa là từ server đưa ra thông báo bắt đầu game
         }
 
@@ -235,11 +276,11 @@ int SpectateScreenUser(sf::RenderWindow &window, std::string roomid)
 
         if (checkOpen == 2)
         {
-            LoggedinScreenUser(window);
+            LoggedinScreenUser(window, username);
         }
         else if (checkOpen == 3)
         {
-            FinishScreen(window, 2);
+            FinishScreen(window, 2, username);
         }
         
 

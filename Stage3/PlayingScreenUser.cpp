@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <nlohmann/json.hpp>
 
 #include ".././User/JoinRoomScreenUser.h"
 #include "PlayingScreenUser.h"
@@ -13,7 +14,10 @@
 #include "../Solve_Cube/type_cube.h"
 #include "../GuideGame.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 std::string formatTime(sf::Time elapsed) {
     int totalSeconds = static_cast<int>(elapsed.asSeconds());
@@ -28,13 +32,15 @@ std::string formatTime(sf::Time elapsed) {
     return ss.str();
 }
 
-int PlayingScreenUser( std::string roomid)
+int PlayingScreenUser( std::string roomid, std::string username)
 {
     int i, j, k;
+    int count_step = 0;
     int rotateX = 0, rotateY = 0, rotateZ = 0;
     std::string usersteps = ""; // Chuỗi cập nhật liên tục để hiển thị các bước  của người chơi đã đi
     char step[3]; // Tại đây khai báo để các bạn lấy biến step này để lưu bước đi hiện tại của người chơi. Ví dụ: F0 là Clockwise
-                                                                                                                // F' là Counter Clockwise
+    int player_id;    
+    int game_session_id;                                                                                                        // F' là Counter Clockwise
                                                                                                                 
     step[2] = '\0';
 
@@ -75,6 +81,7 @@ int PlayingScreenUser( std::string roomid)
         return -1; // Error if font not loaded
     }
 
+
     sf::Text nameLabel("User", font, 30);
     nameLabel.setFillColor(sf::Color::Black);
     nameLabel.setPosition(1040, 20);
@@ -98,7 +105,21 @@ int PlayingScreenUser( std::string roomid)
 
     sf::Clock clock; // Timer
 
-    
+    // Create JSON payload
+    json payload;
+    payload["type"] = "SIGN_IN";
+    payload["data"]["username"] = username;
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Parse the JSON response
+    json jsonResponse = json::parse(response);
+
+    player_id = jsonResponse["data"]["player"]["id"];
     
     sf::Texture settingTexture, peopleTexture;
     if (!settingTexture.loadFromFile("./Image/setting.png") || 
@@ -122,12 +143,34 @@ int PlayingScreenUser( std::string roomid)
     init_cube3x3_color(cube3x3_color);
 
     Cube input_Cube;
-    freopen("../Samsung/Solve_Cube/test_case/testcase4.txt", "r", stdin);
-    for (i=0; i<6; i++)
-    {
-        for (j=0; j<8; j++)
-        {
-            cin >> input_Cube.color[i][j];
+     // Create JSON payload
+    json payload1;
+    payload1["type"] = "START_GAME";
+    payload1["data"]["room_id"] = roomid;
+    payload1["data"]["player_id"] = player_id;
+
+    // Convert JSON payload to string
+    std::string pushData1 = payload1.dump(4);
+    std::cout << pushData1 << std::endl;
+
+    std::string response1 = sendData(pushData1);
+
+    // Parse the JSON response
+    json jsonResponse1 = json::parse(response1);
+
+    game_session_id = jsonResponse1["data"]["game_session"]["id"];
+
+    std::string initialCubeState = jsonResponse1["data"]["game_session"]["initial_cube_state"];
+    // Convert initialCubeState to input_Cube format
+    std::istringstream iss(initialCubeState);
+    std::string color;
+    int face = 0, index = 0;
+    while (iss >> color) {
+        input_Cube.color[face][index] = color[0];
+        index++;
+        if (index == 8) {
+            index = 0;
+            face++;
         }
     }
 
@@ -147,6 +190,26 @@ int PlayingScreenUser( std::string roomid)
 
     while (window.isOpen()) {
         sf::Event event;
+        if (Check_Cube(input_Cube))
+        {
+            // Create JSON payload
+            json payload;
+            payload["type"] = "END_GAME";
+            payload["data"]["player_id"] = player_id;
+            payload["data"]["game_session_id"] = game_session_id;
+            payload["data"]["time_taken"] = clock.getElapsedTime().asSeconds();
+            payload["data"]["moves_count"] = usersteps;
+
+            // Convert JSON payload to string
+            std::string pushData = payload.dump(4);
+            std::cout << pushData << std::endl;
+
+            std::string response = sendData(pushData);
+
+            // Parse the JSON response
+            json jsonResponse = json::parse(response);
+            return 3; //Trả về đúng, giải thành công
+        }
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
@@ -163,6 +226,20 @@ int PlayingScreenUser( std::string roomid)
                 if (ExitButton.isClicked(sf::Mouse::getPosition(window)))
                 {
                     std::cout << "Exit button clicked\n";
+
+                    // Create JSON payload
+                    json payload;
+                    payload["type"] = "LEAVE_ROOM";
+                    payload["data"]["room_id"] = std::stoi(roomid);
+
+                    // Convert JSON payload to string
+                    std::string pushData = payload.dump(4);
+                    std::cout << pushData << std::endl;
+
+                    std::string response = sendData(pushData);
+
+                    // Parse the JSON response
+                    json jsonResponse = json::parse(response);
                     window.close();
                 }
             }
@@ -291,6 +368,39 @@ int PlayingScreenUser( std::string roomid)
                 }
                 
                 Spray_Cube3D(cube3x3_color, input_Cube);
+                count_step++;
+
+                if (count_step == 5)
+                {
+                    // Convert input_Cube to a single string
+                    std::string currentCube;
+                    for (int face = 0; face < 6; ++face) {
+                        for (int index = 0; index < 9; ++index) {
+                            currentCube += input_Cube.color[face][index];
+                            currentCube += " ";
+                        }
+                    }
+                    currentCube.pop_back(); // Remove the trailing space
+
+                    // Create JSON payload
+                    json payload;
+                    payload["type"] = "CUBE_UPDATE";
+                    payload["data"]["current_cube"] = currentCube;
+                    // payload["data"]["player_game_session_id"] = playerGameSessionId;
+
+                    // Convert JSON payload to string
+                    std::string pushData = payload.dump(4);
+                    std::cout << pushData << std::endl;
+
+                    // Send data to server
+                    std::string response = sendData(pushData);
+
+                    // Parse the JSON response
+                    json jsonResponse = json::parse(response);
+
+                    count_step = 0;
+                }
+                //Sau 5 bước update lên server một lần
             }
         }
 
@@ -334,7 +444,7 @@ int PlayingScreenUser( std::string roomid)
         sf::Time elapsed = clock.getElapsedTime();
         timerText.setString(formatTime(elapsed));
 
-        if (clock.getElapsedTime().asSeconds() > 10) {
+        if (clock.getElapsedTime().asSeconds() > 60) {
             return 3;
         } //Check finish screen
         

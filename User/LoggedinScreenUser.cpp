@@ -4,6 +4,7 @@
 #include ".././Object/TextBox.hpp"
 
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "LoggedinScreenUser.h"
 #include "../StartScreen.h"
@@ -11,9 +12,12 @@
 #include "CreateRoomScreenUser.h"
 #include "../GuideGame.h"
 
-using namespace std;
+#include ".././Object/ServerCommune.hpp"
 
-int LoggedinScreenUser(sf::RenderWindow &window)
+using namespace std;
+using json = nlohmann::json;
+
+int LoggedinScreenUser(sf::RenderWindow &window, std::string username)
 {
     sf::Text nameLabel, total, winnum, losenum;
     sf::Font font;
@@ -21,28 +25,44 @@ int LoggedinScreenUser(sf::RenderWindow &window)
         return -1; // Kiểm tra nếu font không tải được
     }
 
+    // Create JSON payload
+    json payload;
+    payload["type"] = "SIGN_IN";
+    payload["data"]["username"] = username;
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Parse the JSON response
+    json jsonResponse = json::parse(response);
+
     nameLabel.setFont(font);
-    nameLabel.setString("User");
+    nameLabel.setString(to_string(jsonResponse["data"]["player"]["username"]));
     nameLabel.setCharacterSize(30);
     nameLabel.setFillColor(sf::Color::Black);
     nameLabel.setPosition(1040, 20);
 
+    int totalGames = jsonResponse["data"]["player"]["total_games"].get<int>();
+    int wins = jsonResponse["data"]["player"]["wins"].get<int>();
     total.setFont(font);
-    total.setString("Total match: " + std::to_string(10));
+    total.setString("Total match: " + to_string(totalGames));
     total.setCharacterSize(25);
     total.setFillColor(sf::Color::Black);
     total.setPosition(970, 100);
     total.setStyle(sf::Text::Bold);
 
     winnum.setFont(font);
-    winnum.setString("Win: " + std::to_string(10));
+    winnum.setString("Win: " + to_string(wins));
     winnum.setCharacterSize(25);
     winnum.setFillColor(sf::Color::Black);
     winnum.setPosition(970, 135);
     winnum.setStyle(sf::Text::Bold);
 
     losenum.setFont(font);
-    losenum.setString("Lose: " + std::to_string(10));
+    losenum.setString("Lose: " + to_string(totalGames - wins));
     losenum.setCharacterSize(25);
     losenum.setFillColor(sf::Color::Black);
     losenum.setPosition(970, 170);
@@ -91,18 +111,21 @@ int LoggedinScreenUser(sf::RenderWindow &window)
             {
                 if (joinRoomButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    JoinRoomScreenUser(window);
+                    
                     std::cout << "Manage Room button clicked\n";
+                    JoinRoomScreenUser(window, username);
                 }
                 else if (createRoomButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    CreateRoomScreenUser(window);
+                    
                     std::cout << "Manage User button clicked\n";
+                    CreateRoomScreenUser(window, username);
                 }
                 else if (logoutButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    StartScreen(window);
+                    
                     std::cout << "Logout button clicked\n";
+                    StartScreen(window);
                 }
             }
         }

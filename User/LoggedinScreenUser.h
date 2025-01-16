@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int LoggedinScreenUser(sf::RenderWindow &window);
+int LoggedinScreenUser(sf::RenderWindow &window, std::string username);
 
 #endif

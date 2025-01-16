@@ -4,6 +4,7 @@
 #include ".././Object/TextBox.hpp"
 
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "JoinRoomScreenUser.h"
 #include "../StartScreen.h"
@@ -12,7 +13,10 @@
 #include "SpectateScreenUser.h"
 #include "../GuideGame.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 // Cấu trúc dữ liệu cho mỗi hàng
 struct Row {
@@ -51,9 +55,9 @@ sf::RectangleShape createPickButton2(float x, float y, bool state) {
     return button;
 }
 
-int JoinRoomScreenUser(sf::RenderWindow &window)
+int JoinRoomScreenUser(sf::RenderWindow &window, std::string username)
 {
-    std::string roomid = "";
+    std::string roomid = "123";
     
     sf::Text nameLabel, tittle1, tittle2, nameWindow;
     sf::Font font;
@@ -61,8 +65,22 @@ int JoinRoomScreenUser(sf::RenderWindow &window)
         return -1; // Kiểm tra nếu font không tải được
     }
 
+    // Create JSON payload
+    json payload;
+    payload["type"] = "SIGN_IN";
+    payload["data"]["username"] = username;
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Parse the JSON response
+    json jsonResponse = json::parse(response);
+
     nameLabel.setFont(font);
-    nameLabel.setString("User");
+    nameLabel.setString(to_string(jsonResponse["data"]["player"]["username"]));
     nameLabel.setCharacterSize(30);
     nameLabel.setFillColor(sf::Color::Black);
     nameLabel.setPosition(1040, 20);
@@ -114,11 +132,39 @@ int JoinRoomScreenUser(sf::RenderWindow &window)
 
     TextBox roomidBox(470.5, 150, 200, 40, "arial.ttf");
 
+    // Create JSON payload
+    json payload1;
+    payload1["type"] = "VIEW_ROOMS";
+
+    // Convert JSON payload to string
+    std::string pushData1 = payload1.dump(4);
+    std::cout << pushData1 << std::endl;
+
+    std::string response1 = sendData(pushData1);
+
+    //std::cout << "Hello" << response1 << "Hello" << std::endl;
+
+    // Parse the JSON response
+    json jsonResponse1 = json::parse(response1);
+
+    std::cout << "Hello" << std::endl;
+
     // Tạo bộ dữ liệu 20 hàng
     std::vector<Row> rows;
-    rows.push_back({"ID", "PLAYER", "SPECTATORS", false});
-    for (int i = 2; i <= 20; ++i) {
-        rows.push_back({std::to_string(i-1), std::to_string(i-2) + "/" + std::to_string(i-1), std::to_string(i+3), false});
+    if (jsonResponse1["status"] == "success") {
+        // Extract user data
+        rows.push_back({"ID", "PLAYER", "SPEC", false});
+        for (const auto& room : jsonResponse1["data"]["rooms"]) {
+            std::string room_id = to_string(room["id"]);
+            std::string numberuser = to_string(room["current_players"]) + "/" + to_string(room["max_players"]);
+            std::string numberspec = to_string(room["current_spectators"]) + "/" + to_string(room["max_spectators"]);
+            std::string status = room["status"];
+            rows.push_back({room_id, numberuser, numberspec, false});
+        }
+    }
+    else
+    {
+        std::cerr << "Failed to get user data\n";
     }
 
     // Biến điều khiển cuộn
@@ -163,18 +209,67 @@ int JoinRoomScreenUser(sf::RenderWindow &window)
             {
                 if (BackButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    LoggedinScreenUser(window);
+                    LoggedinScreenUser(window, username);
                     std::cout << "Back button clicked\n";
                 }
                 else if (JoinButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    LobbyScreenUser(window, roomid);
+                    // Create JSON payload
+                    json payload;
+                    payload["type"] = "JOIN_ROOM";
+                    payload["data"]["room_id"] = std::stoi(roomid);
+                    payload["data"]["participant_type"] = "PLAYER";
+
+                    // Convert JSON payload to string
+                    std::string pushData = payload.dump(4); // Pretty print with 4 spaces indentation
+                    std::cout << pushData << std::endl;
+
+                    // Send data to server
+                    std::string response = sendData(pushData);
+
+                    // Parse the JSON response
+                    json jsonResponse = json::parse(response);
+
+                    // Check the status field
+                    if (jsonResponse["status"] == "success") {
+                        std::cout << "Room created successfully: " << jsonResponse["data"]["message"] << std::endl;
+                    } else {
+                        std::cerr << "Failed to create room: " << jsonResponse["data"]["message"] << std::endl;
+                    }
+                    std::cout << "Create button clicked\n";
+
                     std::cout << "Join button clicked\n";
+                    LobbyScreenUser(window, roomid, username);
                 }
                 else if (SpectateButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    SpectateScreenUser(window, roomid);
+                    // Create JSON payload
+                    json payload;
+                    payload["type"] = "JOIN_ROOM";
+                    payload["data"]["room_id"] = std::stoi(roomid);
+                    payload["data"]["participant_type"] = "ADMIN";
+
+                    // Convert JSON payload to string
+                    std::string pushData = payload.dump(4); // Pretty print with 4 spaces indentation
+                    std::cout << pushData << std::endl;
+
+                    // Send data to server
+                    std::string response = sendData(pushData);
+
+                    // Parse the JSON response
+                    json jsonResponse = json::parse(response);
+
+                    // Check the status field
+                    if (jsonResponse["status"] == "success") {
+                        std::cout << "Room created successfully: " << jsonResponse["data"]["message"] << std::endl;
+                    } else {
+                        std::cerr << "Failed to create room: " << jsonResponse["data"]["message"] << std::endl;
+                    }
+                    std::cout << "Create button clicked\n";
+                    
                     std::cout << "Spectate button clicked\n";
+                    SpectateScreenUser(window, roomid, username);
+                
                 }
             }
 
@@ -211,6 +306,8 @@ int JoinRoomScreenUser(sf::RenderWindow &window)
                         event.mouseButton.y >= y && event.mouseButton.y <= y + 30) {
                         rows[i].pickState = !rows[i].pickState;
                         std::cout << "Pick button clicked on row " << i << std::endl;
+                        roomid = rows[i].id;
+
                     }
                 }
             }

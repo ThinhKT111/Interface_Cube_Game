@@ -6,13 +6,17 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <nlohmann/json.hpp>
 
 #include "ManageUserScreen.h"
 #include "LoggedinScreen.h"
 #include "../StartScreen.h"
 #include "../GuideGame.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 // Cấu trúc dữ liệu cho mỗi hàng
 struct Row {
@@ -91,12 +95,52 @@ int ManageUserScreenAdmin(sf::RenderWindow &window)
 
     Button BackButton("Back", font, 20, {574.5, 760}, {100, 40}, sf::Color(100, 100, 250));
 
-    // Tạo bộ dữ liệu 20 hàng
-    std::vector<Row> rows;
-    rows.push_back({"ID", "NAME", "STATUS", false});
-    for (int i = 2; i <= 20; ++i) {
-        rows.push_back({std::to_string(i-1), "User" + std::to_string(i), (i % 3 == 0) ? "Banned" : "Active", false});
+    // Create JSON payload
+    json payload;
+    payload["type"] = "VIEW_USERS";
+    payload["data"] = {};
+
+    // Convert JSON payload to string
+    std::string pushData = payload.dump(4);
+    std::cout << pushData << std::endl;
+
+    std::string response = sendData(pushData);
+
+    // Check if the response is empty
+    if (response.empty()) {
+        std::cerr << "Received empty response from server" << std::endl;
+        return -1;
     }
+
+    // Parse the JSON response
+    json jsonResponse;
+    try {
+        jsonResponse = json::parse(response);
+    } catch (const json::parse_error& e) {
+        std::cerr << "Parse error: " << e.what() << std::endl;
+        return -1;
+    }
+
+    // Cần xử lý dữ liệu trả về để hiển thị lên bảng
+
+    // Tạo bộ dữ liệu 
+    std::vector<Row> rows;
+    if (jsonResponse["status"] == "success") {
+        // Extract user data
+        rows.push_back({"ID", "USERNAME", "STATUS", false});
+        for (const auto& user : jsonResponse["data"]["users"]) {
+            std::string id = to_string(user["id"]);
+            std::string username = user["username"];
+            std::string status = user["status"];
+            bool isBanned = !user["ban_by"].is_null() && user["ban_by"] != nullptr;
+            rows.push_back({id, username, status, isBanned});
+        }
+    }
+    else
+    {
+        std::cerr << "Failed to get user data\n";
+    }
+
 
     // Biến điều khiển cuộn
     int scrollOffset = 0; // Vị trí cuộn hiện tại
@@ -167,8 +211,29 @@ int ManageUserScreenAdmin(sf::RenderWindow &window)
                     float y = TABLE_OFFSET_Y + 50 + i * ROW_HEIGHT - scrollOffset;
                     if (event.mouseButton.x >= TABLE_OFFSET_X + 400 && event.mouseButton.x <= TABLE_OFFSET_X + 450 &&
                         event.mouseButton.y >= y && event.mouseButton.y <= y + 30) {
-                        rows[i].banState = !rows[i].banState;
+                        rows[i].banState = false;
                         std::cout << "Ban button clicked on row " << i << std::endl;
+                        json banPayload;
+                        banPayload["type"] = "BAN_PLAYER";
+                        banPayload["data"]["player_id"] = std::stoi(rows[i].id);
+                        banPayload["data"]["admin_id"] = "3"; // Replace with actual admin ID
+
+                        // Convert JSON payload to string
+                        std::string banData = banPayload.dump(4);
+                        std::cout << banData << std::endl;
+
+                        // Send data to server
+                        std::string banResponse = sendData(banData);
+
+                        // Parse the JSON response
+                        json banJsonResponse = json::parse(banResponse);
+
+                        // Check the status field
+                        if (banJsonResponse["status"] == "success") {
+                            std::cout << "Player banned successfully: " << banJsonResponse["data"]["message"] << std::endl;
+                        } else {
+                            std::cerr << "Failed to ban player: " << banJsonResponse["data"]["message"] << std::endl;
+                        }
                     }
                 }
             }

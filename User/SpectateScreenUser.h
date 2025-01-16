@@ -3,6 +3,6 @@
 
 #include <SFML/Graphics.hpp>
 
-int SpectateScreenUser(sf::RenderWindow &window, std::string roomid);
+int SpectateScreenUser(sf::RenderWindow &window, std::string roomid, std::string username);
 
 #endif

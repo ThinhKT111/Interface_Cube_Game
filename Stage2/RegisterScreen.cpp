@@ -4,22 +4,27 @@
 #include ".././Object/TextBox.hpp"
 
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "RegisterScreen.h"
 #include "LoginScreen.h"
 #include "../StartScreen.h"
 
+#include ".././Object/ServerCommune.hpp"
+
 
 using namespace std;
 
+using json = nlohmann::json;
+
 int RegisterScreen(sf::RenderWindow &window)
 {
-    std::string email = "";
+    std::string username = "";
     std::string password = "";
     std::string repassword = "";
     int checkInput = 0;
     
-    sf::Text emailLabel, passwordLabel, title, repasswordLabel, alert1, alert2;
+    sf::Text usernameLabel, passwordLabel, title, repasswordLabel, alert1, alert2;
     sf::Font font;
     if (!font.loadFromFile("arial.ttf")) {
         return -1; // Kiểm tra nếu font không tải được
@@ -31,11 +36,11 @@ int RegisterScreen(sf::RenderWindow &window)
     title.setFillColor(sf::Color::Black);
     title.setPosition(50, 50);
 
-    emailLabel.setFont(font);
-    emailLabel.setString("Email:");
-    emailLabel.setCharacterSize(20);
-    emailLabel.setFillColor(sf::Color::Black);
-    emailLabel.setPosition(50, 120);
+    usernameLabel.setFont(font);
+    usernameLabel.setString("Username:");
+    usernameLabel.setCharacterSize(20);
+    usernameLabel.setFillColor(sf::Color::Black);
+    usernameLabel.setPosition(50, 120);
 
     passwordLabel.setFont(font);
     passwordLabel.setString("Password:");
@@ -66,7 +71,7 @@ int RegisterScreen(sf::RenderWindow &window)
     Button backButton("Back", font, 20, {549.5, 600}, {150, 50}, sf::Color(100, 100, 250));
     
 
-    TextBox emailBox(190, 120, 600, 40, "arial.ttf");
+    TextBox usernameBox(190, 120, 600, 40, "arial.ttf");
     TextBox passwordBox(190, 190, 600, 40, "arial.ttf");
     TextBox repasswordBox(190, 260, 600, 40, "arial.ttf");
 
@@ -76,18 +81,18 @@ int RegisterScreen(sf::RenderWindow &window)
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            emailBox.handleEvent(event, window);
+            usernameBox.handleEvent(event, window);
             passwordBox.handleEvent(event, window);
             repasswordBox.handleEvent(event, window);
 
             // Khi nhấn phím Enter, lưu giá trị TextBox vào string
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
-                email = emailBox.getText();
+                username = usernameBox.getText();
                 password = passwordBox.getText();
                 repassword = repasswordBox.getText();
 
                 // Hiển thị giá trị ra console (hoặc sử dụng giá trị này ở nơi khác)
-                std::cout << "TextBox 1: " << email << std::endl;
+                std::cout << "TextBox 1: " << username << std::endl;
                 std::cout << "TextBox 2: " << password << std::endl;
                 std::cout << "TextBox 3: " << repassword << std::endl;
             }
@@ -97,17 +102,35 @@ int RegisterScreen(sf::RenderWindow &window)
             {
                 if (submitButton.isClicked(sf::Mouse::getPosition(window)))
                 {
-                    if (email == "admin" && password == "admin")
-                    {
-                        LoginScreen(window);
-                    }
-                    else if (password != repassword)
+                    if (password != repassword)
                     {
                         checkInput = 1;
                     }
                     else
                     {
-                        checkInput = 2;
+                        // Create JSON payload
+                        json payload;
+                        payload["data"]["password"] = password;
+                        payload["data"]["username"] = username;
+                        payload["type"] = "SIGN_IN";
+
+                        // Convert JSON payload to string
+                        std::string pushData = payload.dump(4);
+                        std::cout << pushData << std::endl;
+
+                        std::string response = sendData(pushData);
+
+                        // Parse the JSON response
+                        json jsonResponse = json::parse(response);
+
+                        // Check the status and user_type fields
+                        if (jsonResponse["status"] == "success") {
+                            std::cout << "Success: " << jsonResponse["data"]["message"] << std::endl;
+                            LoginScreen(window);
+                        } else {
+                            std::cout << "Fail: " << jsonResponse["data"]["message"] << std::endl;
+                            checkInput = 2;
+                        }  
                     }
                 }
                 if (backButton.isClicked(sf::Mouse::getPosition(window)))
@@ -121,7 +144,7 @@ int RegisterScreen(sf::RenderWindow &window)
         window.clear(sf::Color(180, 255, 240)); // Background Color
 
         window.draw(title);
-        window.draw(emailLabel);
+        window.draw(usernameLabel);
         window.draw(passwordLabel);
 
         if (checkInput == 1)
@@ -137,7 +160,7 @@ int RegisterScreen(sf::RenderWindow &window)
         submitButton.draw(window);
         backButton.draw(window);
 
-        emailBox.draw(window);
+        usernameBox.draw(window);
         passwordBox.draw(window);
         repasswordBox.draw(window);
 
